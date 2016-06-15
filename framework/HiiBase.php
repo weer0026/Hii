@@ -30,8 +30,10 @@ class HiiBase
 	 *  自动加载类中使用，用来自动加载核心代码
 	 */
 	private static $_coreClasses = [
-		'CWebApplication' => '/base/CWebApplication.php',
-
+		'CApplication' => '/base/CApplication.php',
+		'CWebApplication' => '/web/CWebApplication.php',
+		'CModule' => '/base/CModule.php',
+		'CComponent' => '/base/CComponent.php'
 	];
 }
 //注册自动加载方法
