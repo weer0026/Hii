@@ -21,10 +21,27 @@ abstract class CApplication extends CModule
 			$this->setBasePath('protected');
 		}
 		//开始设置路径别名
+		//设置applicaition应用路径别名
+		Hii::setPathOfAlias('application', $this->getBasePath());
+		//设置当前执行脚本的绝对路径为webroot
+		Hii::setPathOfAlias('webroot', dirname($_SERVER['SCRIPT_FILENAME']));
+		//设置自定义扩展的路径
+		if (isset($config['extensionPath'])) {
+			$this->setExtensionPath($config['extensionPath']);
+			unset($config['extensionPath']);
+		} else {
+			//默认路径为 protected/extensions
+			Hii::setPathOfAlias('ext', $this->getBasePath().DIRECTORY_SEPARATOR.'extensions');
+		}
+		//如果配置文件里面设置了alias，添加到$_aliases
+		if (isset($config['aliases'])) {
+			$this->setAlias($config['aliases']);
+			unset($config['aliases']);
+		}
 	}
 
 	/**
-	 *  设置程序根路径
+	 *  设置application程序根路径
 	 */
 	public function setBasePath($path)
 	{
@@ -35,9 +52,26 @@ abstract class CApplication extends CModule
 		}
 	}
 
+	/**
+	 *  设置第三方扩展所在的路径，并设置别名ext
+	 */
+	public function setExtensionPath($path)
+	{
+		if ($extensionPath = realpath($path) === false || !is_dir($extensionPath)) {
+			throw new CException('第三方的extension加载路径不存在！');
+		}
+		//设置别名ext
+		Hii::setPathOfAlias('ext', $extensionPath);
+	}
+
 	//获取设置的应用程序路径
 	public function getBasePath()
 	{
 		return $this->_basePath;
+	}
+
+	public function setAlias($mappings)
+	{
+
 	}
 }
