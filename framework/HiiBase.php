@@ -1,6 +1,10 @@
 <?php
 //定义核心代码的路径
 defined('HII_PATH') or define('HII_PATH', dirname(__FILE__));
+//是否调用框架定义的异常处理函数
+defined('HII_ENABLE_EXCEPTION_HANDLER') or define('HII_ENABLE_EXCEPTION_HANDLER',true);
+//是否调用框架定义的错误处理函数
+defined('HII_ENABLE_ERROR_HANDLER') or define('HII_ENABLE_ERROR_HANDLER',true);
 
 class HiiBase
 {
@@ -61,7 +65,15 @@ class HiiBase
 				//处理细节：把 . 替换成目录分隔符，把 * 去掉
 				return self::$_aliases[$rootAlias] = rtrim(self::$_aliases[$alias].DIRECTORY_SEPARATOR.str_replace('.', DIRECTORY_SEPARATOR, substr($alias, $pos+1)), '*'.DIRECTORY_SEPARATOR);
 			}
+		} elseif (self::$_app instanceof CWebApplication) {
+			//TODO 这里没看懂为什么这么做
 		}
+		return false;
+	}
+
+	public static function log($msg, $level)
+	{
+
 	}
 
 	/**
@@ -72,7 +84,8 @@ class HiiBase
 		'CWebApplication' => '/web/CWebApplication.php',
 		'CModule' => '/base/CModule.php',
 		'CComponent' => '/base/CComponent.php',
-		'CException' => 'base/CException.php'
+		'CException' => 'base/CException.php',
+		'CLogger' => '/logging/CLogger.php',
 	];
 }
 //注册自动加载方法

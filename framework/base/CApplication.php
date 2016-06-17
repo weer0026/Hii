@@ -38,6 +38,29 @@ abstract class CApplication extends CModule
 			$this->setAlias($config['aliases']);
 			unset($config['aliases']);
 		}
+		//定义在CModule里面，在init之前执行，可以在初始化之前做一些自定义处理
+		$this->preinit();
+		//设置错误和异常处理函数
+		$this->initSystemHandlers();
+	}
+
+	//初始化错误和异常处理函数
+	protected function initSystemHandlers()
+	{
+		if (HII_ENABLE_EXCEPTION_HANDLER) {
+			set_exception_handler([$this, 'handleException']);
+		}
+		if (HII_ENABLE_ERROR_HANDLER) {
+			set_error_handler([$this,'handleError'], error_reporting());
+		}
+	}
+
+	/**
+	 *
+	 */
+	public function handleException($exception)
+	{
+		
 	}
 
 	/**
@@ -68,10 +91,5 @@ abstract class CApplication extends CModule
 	public function getBasePath()
 	{
 		return $this->_basePath;
-	}
-
-	public function setAlias($mappings)
-	{
-
 	}
 }
