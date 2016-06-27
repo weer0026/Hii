@@ -42,6 +42,8 @@ abstract class CApplication extends CModule
 		$this->preinit();
 		//设置错误和异常处理函数
 		$this->initSystemHandlers();
+		//注册框架核心组件
+		$this->registerCoreComponents();
 	}
 
 	//初始化错误和异常处理函数
@@ -56,11 +58,38 @@ abstract class CApplication extends CModule
 	}
 
 	/**
-	 *
+	 *  自定义异常处理函数
 	 */
 	public function handleException($exception)
 	{
-		
+		//还原错误和异常处理函数
+		restore_error_handler();
+		restore_exception_handler();
+		//异常的类型名称
+		$category = 'exception.'.get_class($exception);
+		if ($exception instanceof CHttpException) {
+			$category .= '.'.$exception->statusCode;
+		}
+		$message = $exception->__toString();
+		//如果有请求地址附加上
+		if (isset($_SERVER['REQUEST_URI'])) {
+			$message .= "\nREQUEST_URI=".$_SERVER['REQUEST_URI'];
+		}
+		//如果有来源页的地址就附加上
+		if (isset($_SERVER['HTTP_REFERER'])) {
+			$message .= "\nHTTP_REFERER=".$_SERVER['HTTP_REFERER'];
+		}
+		$message .= "\n----";
+		//调用log函数进行记录
+		Hii::log($message, CLogger::LEVEL_ERROR, $category);
+	}
+
+	/**
+	 *  自定义的错误处理函数
+	 */
+	public function handleError()
+	{
+
 	}
 
 	/**
@@ -91,5 +120,13 @@ abstract class CApplication extends CModule
 	public function getBasePath()
 	{
 		return $this->_basePath;
+	}
+
+	protected function registerCoreComponents()
+	{
+		$components = [
+
+		];
+		$this->setComponents($components);
 	}
 }

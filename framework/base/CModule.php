@@ -1,4 +1,7 @@
 <?php
+/**
+ * CModule 主要用来管理应用组件和子模块
+ */
 abstract class CModule extends CComponent
 {
 	/**

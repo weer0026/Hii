@@ -12,6 +12,8 @@ class HiiBase
 	private static $_aliases = ['system' => HII_PATH];
 	//存储实例化的应用，web或者console, Hii::_$app 相当于调用对应的应用实例
 	private static $_app;
+	//用来存储CLogger的实例
+	private static $_logger;
 	/**
 	*   自动加载方法 用于HiiBase中的spl_autoload_register
 	*/
@@ -71,9 +73,33 @@ class HiiBase
 		return false;
 	}
 
-	public static function log($msg, $level)
+	public static function log($msg, $level = CLogger::LEVEL_INFO, $category = 'application')
 	{
+		//存储日志类
+		if (self::$_logger === null) {
+			self::$_logger = new CLogger;
+		}
+	}
 
+	/**
+	 *  将传入的信息翻译成其他语言版本
+	 */
+	public static function t($category, $message, $params = [], $source = null, $language = null)
+	{
+		if (self::$_app !== null) {
+			if ($source === null) {
+				//不知定资源时候调用的类
+				$source = ($category === 'yii' || $category === 'zii') ? 'coreMessage' : 'message';
+			}
+			//TODO 指定资源调用的类
+		}
+		//params参数用来替换掉message里面的占位符（{value}）
+		if ($params = []) {
+			return $message;
+		}
+		if (!is_array($params)) {
+			$params = [$params];
+		}
 	}
 
 	/**
@@ -86,8 +112,11 @@ class HiiBase
 		'CComponent' => '/base/CComponent.php',
 		'CException' => 'base/CException.php',
 		'CLogger' => '/logging/CLogger.php',
+		'CList' => '/collections/CList.php',
 	];
 }
 //注册自动加载方法
 //调用自动加载方法 HiiBase::autoload()
 spl_autoload_register(['HiiBase', 'autoload']);
+//包含接口文件
+require(HII_PATH.'/base/interfaces.php');
