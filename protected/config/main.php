@@ -4,6 +4,16 @@ return [
 	'basePath' => dirname(__FILE__). DIRECTORY_SEPARATOR . '..',
 	//预加载log模块
 	'preload' => array('log'),
+	'import' => array(
+        'application.models.*',
+        'application.components.*',
+        'application.components.validators.*',
+        'application.extensions.*',
+        'application.extensions.redis.*',
+        'application.models_ext.*',
+        'application.widgets.*',
+        'application.vendors.*',
+	),
 	'components' => array(
 		'log' => array(
 			'class' => 'CLoggerRoute',

@@ -37,8 +37,6 @@ class CLogger extends CComponent
 	private $_logs=array();
 	//统计寸粗的日志数量
 	private $_logCount = 0;
-	//是否正在处理日志
-	private $_processing = false;
 
 	public function log($message,$level='info',$category='application')
 	{

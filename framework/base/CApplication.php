@@ -9,6 +9,8 @@ abstract class CApplication extends CModule
 
 	public function __construct($config = null)
 	{	
+		//存储实例
+		Hii::setApplication($this);
 		//config为字符串的时候当作文件路径加载
 		if (is_string($config)) {
 			$config = require($config);
@@ -44,6 +46,8 @@ abstract class CApplication extends CModule
 		$this->initSystemHandlers();
 		//注册框架核心组件
 		$this->registerCoreComponents();
+		die;
+		$this->configure($config);
 	}
 
 	//初始化错误和异常处理函数
@@ -55,6 +59,16 @@ abstract class CApplication extends CModule
 		if (HII_ENABLE_ERROR_HANDLER) {
 			set_error_handler([$this,'handleError'], error_reporting());
 		}
+	}
+
+	/**
+	 * 处理错误event
+	 * @param  [type]
+	 * @return [type]
+	 */
+	public function onError($event)
+	{
+		$this->raiseEvent('onError', $event);
 	}
 
 	/**
@@ -82,14 +96,216 @@ abstract class CApplication extends CModule
 		$message .= "\n----";
 		//调用log函数进行记录
 		Hii::log($message, CLogger::LEVEL_ERROR, $category);
+
+		try
+		{
+			$event=new CExceptionEvent($this,$exception);
+			$this->onException($event);
+			if(!$event->handled)
+			{
+				// try an error handler
+				if(($handler=$this->getErrorHandler())!==null)
+					$handler->handle($event);
+				else
+					$this->displayException($exception);
+			}
+		}
+		catch(Exception $e)
+		{
+			$this->displayException($e);
+		}
+
+		try
+		{
+			$this->end(1);
+		}
+		catch(Exception $e)
+		{
+			// use the most primitive way to log error
+			$msg = get_class($e).': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().")\n";
+			$msg .= $e->getTraceAsString()."\n";
+			$msg .= "Previous exception:\n";
+			$msg .= get_class($exception).': '.$exception->getMessage().' ('.$exception->getFile().':'.$exception->getLine().")\n";
+			$msg .= $exception->getTraceAsString()."\n";
+			$msg .= '$_SERVER='.var_export($_SERVER,true);
+			error_log($msg);
+			exit(1);
+		}
+	}
+
+	/**
+	 * Raised when an uncaught PHP exception occurs.
+	 *
+	 * An event handler can set the {@link CExceptionEvent::handled handled}
+	 * property of the event parameter to be true to indicate no further error
+	 * handling is needed. Otherwise, the {@link getErrorHandler errorHandler}
+	 * application component will continue processing the error.
+	 *
+	 * @param CExceptionEvent $event event parameter
+	 */
+	public function onException($event)
+	{
+		$this->raiseEvent('onException',$event);
 	}
 
 	/**
 	 *  自定义的错误处理函数
 	 */
-	public function handleError()
+	public function handleError($code,$message,$file,$line)
 	{
+		if($code & error_reporting())
+		{
+			// disable error capturing to avoid recursive errors
+			restore_error_handler();
+			restore_exception_handler();
 
+			$log="$message ($file:$line)\nStack trace:\n";
+			$trace=debug_backtrace();
+			// skip the first 3 stacks as they do not tell the error position
+			if(count($trace)>3)
+				$trace=array_slice($trace,3);
+			foreach($trace as $i=>$t)
+			{
+				if(!isset($t['file']))
+					$t['file']='unknown';
+				if(!isset($t['line']))
+					$t['line']=0;
+				if(!isset($t['function']))
+					$t['function']='unknown';
+				$log.="#$i {$t['file']}({$t['line']}): ";
+				if(isset($t['object']) && is_object($t['object']))
+					$log.=get_class($t['object']).'->';
+				$log.="{$t['function']}()\n";
+			}
+			if(isset($_SERVER['REQUEST_URI']))
+				$log.='REQUEST_URI='.$_SERVER['REQUEST_URI'];
+			Hii::log($log,CLogger::LEVEL_ERROR,'php');
+
+			try
+			{
+				Hii::import('CErrorEvent',true);
+				$event=new CErrorEvent($this,$code,$message,$file,$line);
+				$this->onError($event);
+				if(!$event->handled)
+				{
+					// try an error handler
+					if(($handler=$this->getErrorHandler())!==null)
+						$handler->handle($event);
+					else
+						$this->displayError($code,$message,$file,$line);
+				}
+			}
+			catch(Exception $e)
+			{
+				$this->displayException($e);
+			}
+
+			try
+			{
+				$this->end(1);
+			}
+			catch(Exception $e)
+			{
+				// use the most primitive way to log error
+				$msg = get_class($e).': '.$e->getMessage().' ('.$e->getFile().':'.$e->getLine().")\n";
+				$msg .= $e->getTraceAsString()."\n";
+				$msg .= "Previous error:\n";
+				$msg .= $log."\n";
+				$msg .= '$_SERVER='.var_export($_SERVER,true);
+				error_log($msg);
+				exit(1);
+			}
+		}
+	}
+
+	/**
+	 * Terminates the application.
+	 * This method replaces PHP's exit() function by calling
+	 * {@link onEndRequest} before exiting.
+	 * @param integer $status exit status (value 0 means normal exit while other values mean abnormal exit).
+	 * @param boolean $exit whether to exit the current request. This parameter has been available since version 1.1.5.
+	 * It defaults to true, meaning the PHP's exit() function will be called at the end of this method.
+	 */
+	public function end($status=0,$exit=true)
+	{
+		if($this->hasEventHandler('onEndRequest'))
+			$this->onEndRequest(new CEvent($this));
+		if($exit)
+			exit($status);
+	}
+
+	/**
+	 * 返回error handler组件
+	 * @return CErrorHandler the error handler application component.
+	 */
+	public function getErrorHandler()
+	{
+		return $this->getComponent('errorHandler');
+	}
+
+	/**
+	 * Displays the uncaught PHP exception.
+	 * This method displays the exception in HTML when there is
+	 * no active error handler.
+	 * @param Exception $exception the uncaught exception
+	 */
+	public function displayException($exception)
+	{
+		if(HII_DEBUG)
+		{
+			echo '<h1>'.get_class($exception)."</h1>\n";
+			echo '<p>'.$exception->getMessage().' ('.$exception->getFile().':'.$exception->getLine().')</p>';
+			echo '<pre>'.$exception->getTraceAsString().'</pre>';
+		}
+		else
+		{
+			echo '<h1>'.get_class($exception)."</h1>\n";
+			echo '<p>'.$exception->getMessage().'</p>';
+		}
+	}
+
+	/**
+	 * Displays the captured PHP error.
+	 * This method displays the error in HTML when there is
+	 * no active error handler.
+	 * @param integer $code error code
+	 * @param string $message error message
+	 * @param string $file error file
+	 * @param string $line error line
+	 */
+	public function displayError($code,$message,$file,$line)
+	{
+		if(HII_DEBUG)
+		{
+			echo "<h1>PHP Error [$code]</h1>\n";
+			echo "<p>$message ($file:$line)</p>\n";
+			echo '<pre>';
+
+			$trace=debug_backtrace();
+			// skip the first 3 stacks as they do not tell the error position
+			if(count($trace)>3)
+				$trace=array_slice($trace,3);
+			foreach($trace as $i=>$t)
+			{
+				if(!isset($t['file']))
+					$t['file']='unknown';
+				if(!isset($t['line']))
+					$t['line']=0;
+				if(!isset($t['function']))
+					$t['function']='unknown';
+				echo "#$i {$t['file']}({$t['line']}): ";
+				if(isset($t['object']) && is_object($t['object']))
+					echo get_class($t['object']).'->';
+				echo "{$t['function']}()\n";
+			}
+
+			echo '</pre>';
+		}
+		else
+		{
+			echo "<h1>PHP Error [$code]</h1>\n";
+			echo "<p>$message</p>\n";
+		}
 	}
 
 	/**
@@ -125,7 +341,35 @@ abstract class CApplication extends CModule
 	protected function registerCoreComponents()
 	{
 		$components = [
-
+			'coreMessages'=>array(
+				'class'=>'CPhpMessageSource',
+				'language'=>'en_us',
+				'basePath'=>HII_PATH.DIRECTORY_SEPARATOR.'messages',
+			),
+			'db'=>array(
+				'class'=>'CDbConnection',
+			),
+			'messages'=>array(
+				'class'=>'CPhpMessageSource',
+			),
+			'errorHandler'=>array(
+				'class'=>'CErrorHandler',
+			),
+			'securityManager'=>array(
+				'class'=>'CSecurityManager',
+			),
+			'statePersister'=>array(
+				'class'=>'CStatePersister',
+			),
+			'urlManager'=>array(
+				'class'=>'CUrlManager',
+			),
+			'request'=>array(
+				'class'=>'CHttpRequest',
+			),
+			'format'=>array(
+				'class'=>'CFormatter',
+			),
 		];
 		$this->setComponents($components);
 	}

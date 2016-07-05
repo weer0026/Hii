@@ -32,18 +32,19 @@ class CComponent
 					return $object->$name;
 			}
 		}
-		throw new CException(Yii::t('yii','Property "{class}.{property}" is not defined.',
-			array('{class}'=>get_class($this), '{property}'=>$name)));
+		throw new CException('Property "{class}.{property}" is not defined.');
 	}
 
 
 	public function __set($name,$value)
 	{
 		$setter='set'.$name;
+		//调用set{Name}方法
 		if(method_exists($this,$setter))
 			return $this->$setter($value);
 		elseif(strncasecmp($name,'on',2)===0 && method_exists($this,$name))
 		{
+			//构造event handler
 			$name=strtolower($name);
 			if(!isset($this->_e[$name]))
 				$this->_e[$name]=new CList;
@@ -58,10 +59,10 @@ class CComponent
 			}
 		}
 		if(method_exists($this,'get'.$name))
-			throw new CException(Yii::t('yii','Property "{class}.{property}" is read only.',
+			throw new CException(Hii::t('Hii','Property "{class}.{property}" is read only.',
 				array('{class}'=>get_class($this), '{property}'=>$name)));
 		else
-			throw new CException(Yii::t('yii','Property "{class}.{property}" is not defined.',
+			throw new CException(Hii::t('Hii','Property "{class}.{property}" is not defined.',
 				array('{class}'=>get_class($this), '{property}'=>$name)));
 	}
 
@@ -75,6 +76,79 @@ class CComponent
 	public function hasEvent($name)
 	{
 		return !strncasecmp($name,'on',2) && method_exists($this,$name);
+	}
+
+	/**
+	 * Checks whether the named event has attached handlers.
+	 * @param string $name the event name
+	 * @return boolean whether an event has been attached one or several handlers
+	 */
+	public function hasEventHandler($name)
+	{
+		$name=strtolower($name);
+		//检查event有没有对应的event handler
+		return isset($this->_e[$name]) && $this->_e[$name]->getCount()>0;
+	}
+
+	/**
+	 * Determines whether a property is defined.
+	 * A property is defined if there is a getter or setter method
+	 * defined in the class. Note, property names are case-insensitive.
+	 * @param string $name the property name
+	 * @return boolean whether the property is defined
+	 * @see canGetProperty
+	 * @see canSetProperty
+	 */
+	public function hasProperty($name)
+	{
+		return method_exists($this,'get'.$name) || method_exists($this,'set'.$name);
+	}
+
+	/**
+	 * Determines whether a property can be read.
+	 * A property can be read if the class has a getter method
+	 * for the property name. Note, property name is case-insensitive.
+	 * @param string $name the property name
+	 * @return boolean whether the property can be read
+	 * @see canSetProperty
+	 */
+	public function canGetProperty($name)
+	{
+		return method_exists($this,'get'.$name);
+	}
+
+	/**
+	 * Determines whether a property can be set.
+	 * A property can be written if the class has a setter method
+	 * for the property name. Note, property name is case-insensitive.
+	 * @param string $name the property name
+	 * @return boolean whether the property can be written
+	 * @see canGetProperty
+	 */
+	public function canSetProperty($name)
+	{
+		return method_exists($this,'set'.$name);
+	}
+
+	/**
+	 * 获取被添加到event上的event handler
+	 * Returns the list of attached event handlers for an event.
+	 * @param string $name the event name
+	 * @return CList list of attached event handlers for the event
+	 * @throws CException if the event is not defined
+	 */
+	public function getEventHandlers($name)
+	{
+		if($this->hasEvent($name))
+		{
+			$name=strtolower($name);
+			if(!isset($this->_e[$name]))
+				$this->_e[$name]=new CList;
+			return $this->_e[$name];
+		}
+		else
+			throw new CException(Hii::t('hii','Event "{class}.{event}" is not defined.',
+				array('{class}'=>get_class($this), '{event}'=>$name)));
 	}
 
 	/**
@@ -114,14 +188,14 @@ class CComponent
 						elseif(method_exists($object,$method))
 							$object->$method($event);
 						else
-							throw new CException(Yii::t('yii','Event "{class}.{event}" is attached with an invalid handler "{handler}".',
+							throw new CException(Hii::t('Hii','Event "{class}.{event}" is attached with an invalid handler "{handler}".',
 								array('{class}'=>get_class($this), '{event}'=>$name, '{handler}'=>$handler[1])));
 					}
 					else // PHP 5.3: anonymous function
 						call_user_func($handler,$event); //匿名函数
 				}
 				else
-					throw new CException(Yii::t('yii','Event "{class}.{event}" is attached with an invalid handler "{handler}".',
+					throw new CException(Hii::t('Hii','Event "{class}.{event}" is attached with an invalid handler "{handler}".',
 						array('{class}'=>get_class($this), '{event}'=>$name, '{handler}'=>gettype($handler))));
 				// stop further handling if param.handled is set true
 				//检查event是否已经被处理好了，处理完毕以后就不继续遍历event hanlder继续处理了
@@ -129,8 +203,8 @@ class CComponent
 					return;
 			}
 		}
-		elseif(YII_DEBUG && !$this->hasEvent($name))
-			throw new CException(Yii::t('yii','Event "{class}.{event}" is not defined.',
+		elseif(HII_DEBUG && !$this->hasEvent($name))
+			throw new CException(Hii::t('Hii','Event "{class}.{event}" is not defined.',
 				array('{class}'=>get_class($this), '{event}'=>$name)));
 	}
 }
