@@ -10,7 +10,7 @@ class HiiBase
 {
 	//存储路径别名的映射数组
 	private static $_aliases = ['system' => HII_PATH];
-	//存储实例化的应用，web或者console, Hii::_$app 相当于调用对应的应用实例
+	//存储实例化的应用，web或者console, Hii::$_app 相当于调用对应的应用实例
 	private static $_app;
 	//用来存储CLogger的实例
 	private static $_logger;
@@ -44,7 +44,7 @@ class HiiBase
 		if(self::$_app === null || $app === null) {
 			self::$_app = $app;
 		} else {
-			throw new CException(Yii::t('hii','Hii application can only be created once.'));
+			throw new CException(Hii::t('hii','Hii application can only be created once.'));
 		}
 	}
 
@@ -110,7 +110,7 @@ class HiiBase
 					if(is_file($classFile))
 						require($classFile);
 					else
-						throw new CException(Yii::t('yii','Alias "{alias}" is invalid. Make sure it points to an existing PHP file and the file is readable.',array('{alias}'=>$alias)));
+						throw new CException(Hii::t('yii','Alias "{alias}" is invalid. Make sure it points to an existing PHP file and the file is readable.',array('{alias}'=>$alias)));
 					self::$_imports[$alias]=$alias;
 				}
 				else
@@ -123,7 +123,7 @@ class HiiBase
 				if (class_exists($alias,true))
 					return self::$_imports[$alias]=$alias;
 				else
-					throw new CException(Yii::t('yii','Alias "{alias}" is invalid. Make sure it points to an existing directory or file.',
+					throw new CException(Hii::t('yii','Alias "{alias}" is invalid. Make sure it points to an existing directory or file.',
 						array('{alias}'=>$namespace)));
 			}
 		}
@@ -151,7 +151,7 @@ class HiiBase
 					if(is_file($path.'.php'))
 						require($path.'.php');
 					else
-						throw new CException(Yii::t('yii','Alias "{alias}" is invalid. Make sure it points to an existing PHP file and the file is readable.',array('{alias}'=>$alias)));
+						throw new CException(Hii::t('yii','Alias "{alias}" is invalid. Make sure it points to an existing PHP file and the file is readable.',array('{alias}'=>$alias)));
 					self::$_imports[$alias]=$className;
 				}
 				else
@@ -176,7 +176,7 @@ class HiiBase
 			}
 		}
 		else
-			throw new CException(Yii::t('yii','Alias "{alias}" is invalid. Make sure it points to an existing directory or file.',
+			throw new CException(Hii::t('yii','Alias "{alias}" is invalid. Make sure it points to an existing directory or file.',
 				array('{alias}'=>$alias)));
 	}
 
@@ -217,6 +217,19 @@ class HiiBase
 		return false;
 	}
 
+	/**
+	 * Writes a trace message.
+	 * This method will only log a message when the application is in debug mode.
+	 * @param string $msg message to be logged
+	 * @param string $category category of the message
+	 * @see log
+	 */
+	public static function trace($msg,$category='application')
+	{
+		if(HII_DEBUG)
+			self::log($msg,CLogger::LEVEL_TRACE,$category);
+	}
+
 	public static function log($msg, $level = CLogger::LEVEL_INFO, $category = 'application')
 	{
 		//存储日志类
@@ -226,24 +239,120 @@ class HiiBase
 	}
 
 	/**
+	 * Creates an object and initializes it based on the given configuration.
+	 *
+	 * The specified configuration can be either a string or an array.
+	 * If the former, the string is treated as the object type which can
+	 * be either the class name or {@link HiiBase::getPathOfAlias class path alias}.
+	 * If the latter, the 'class' element is treated as the object type,
+	 * and the rest of the name-value pairs in the array are used to initialize
+	 * the corresponding object properties.
+	 *
+	 * Any additional parameters passed to this method will be
+	 * passed to the constructor of the object being created.
+	 *
+	 * @param mixed $config the configuration. It can be either a string or an array.
+	 * @return mixed the created object
+	 * @throws CException if the configuration does not have a 'class' element.
+	 */
+	public static function createComponent($config)
+	{
+		if(is_string($config))
+		{
+			$type=$config;
+			$config=array();
+		}
+		elseif(isset($config['class']))
+		{
+			$type=$config['class'];
+			unset($config['class']);
+		}
+		else
+			throw new CException(Hii::t('yii','Object configuration must be an array containing a "class" element.'));
+
+		if(!class_exists($type,false))
+			$type=Hii::import($type,true);
+
+		if(($n=func_num_args())>1)
+		{
+			$args=func_get_args();
+			if($n===2)
+				$object=new $type($args[1]);
+			elseif($n===3)
+				$object=new $type($args[1],$args[2]);
+			elseif($n===4)
+				$object=new $type($args[1],$args[2],$args[3]);
+			else
+			{
+				unset($args[0]);
+				$class=new ReflectionClass($type);
+				// Note: ReflectionClass::newInstanceArgs() is available for PHP 5.1.3+
+				// $object=$class->newInstanceArgs($args);
+				$object=call_user_func_array(array($class,'newInstance'),$args);
+			}
+		}
+		else
+			$object=new $type;
+
+		foreach($config as $key=>$value)
+			$object->$key=$value;
+
+		return $object;
+	}
+
+	public static function getVersion()
+	{
+		return 'my test';
+	}
+
+	/**
 	 *  将传入的信息翻译成其他语言版本
 	 */
-	public static function t($category, $message, $params = [], $source = null, $language = null)
+	public static function t($category,$message,$params=array(),$source=null,$language=null)
 	{
-		if (self::$_app !== null) {
-			if ($source === null) {
-				//不知定资源时候调用的类
-				$source = ($category === 'yii' || $category === 'zii') ? 'coreMessage' : 'message';
+		if(self::$_app!==null)
+		{
+			if($source===null)
+				$source=($category==='hii'||$category==='zii')?'coreMessages':'messages';
+			if(($source=self::$_app->getComponent($source))!==null){
+				$message=$source->translate($category,$message,$language);
 			}
-			//TODO 指定资源调用的类
 		}
-		//params参数用来替换掉message里面的占位符（{value}）
-		if ($params = []) {
+		if($params===array())
 			return $message;
+		if(!is_array($params))
+			$params=array($params);
+		if(isset($params[0])) // number choice
+		{
+			if(strpos($message,'|')!==false)
+			{
+				if(strpos($message,'#')===false)
+				{
+					$chunks=explode('|',$message);
+					$expressions=self::$_app->getLocale($language)->getPluralRules();
+					if($n=min(count($chunks),count($expressions)))
+					{
+						for($i=0;$i<$n;$i++)
+							$chunks[$i]=$expressions[$i].'#'.$chunks[$i];
+
+						$message=implode('|',$chunks);
+					}
+				}
+				$message=CChoiceFormat::format($message,$params[0]);
+			}
+			if(!isset($params['{n}']))
+				$params['{n}']=$params[0];
+			unset($params[0]);
 		}
-		if (!is_array($params)) {
-			$params = [$params];
-		}
+		return $params!==array() ? strtr($message,$params) : $message;
+	}
+
+	/**
+	 * 返回创建的APP实例
+	 */
+	public static function app()
+	{
+		return self::$_app;
 	}
 
 	/**
@@ -251,6 +360,7 @@ class HiiBase
 	 */
 	private static $_coreClasses = [
 		'CApplication' => '/base/CApplication.php',
+		'CApplicationComponent' => '/base/CApplicationComponent.php',
 		'CWebApplication' => '/web/CWebApplication.php',
 		'CModule' => '/base/CModule.php',
 		'CComponent' => '/base/CComponent.php',
@@ -261,6 +371,8 @@ class HiiBase
 		'CErrorEvent' => '/base/CErrorEvent.php',
 		'CErrorHandler' => '/base/CErrorHandler.php',
 		'CExceptionEvent' => '/base/CExceptionEvent.php',
+		'CMessageSource' => '/i18n/CMessageSource.php',
+		'CPhpMessageSource' => '/i18n/CPhpMessageSource.php',
 	];
 }
 //注册自动加载方法

@@ -4,11 +4,11 @@
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @link http://www.yiiframework.com/
- * @copyright 2008-2013 Yii Software LLC
+ * @copyright 2008-2013 Hii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
-Yii::import('CHtml',true);
+Hii::import('CHtml',true);
 
 /**
  * CErrorHandler handles uncaught PHP errors and exceptions.
@@ -27,7 +27,7 @@ Yii::import('CHtml',true);
  * whose name is the language code (e.g. zh_cn/error500.php).
  *
  * Development views are displayed when the application is in debug mode
- * (i.e. YII_DEBUG is defined as true). Detailed error information with source code
+ * (i.e. HII_DEBUG is defined as true). Detailed error information with source code
  * are displayed in these views. Production views are meant to be shown
  * to end-users and are used when the application is in production mode.
  * For security reasons, they only display the error message without any
@@ -76,7 +76,7 @@ class CErrorHandler extends CApplicationComponent
 	public $discardOutput=true;
 	/**
 	 * @var string the route (eg 'site/error') to the controller action that will be used to display external errors.
-	 * Inside the action, it can retrieve the error information by Yii::app()->errorHandler->error.
+	 * Inside the action, it can retrieve the error information by Hii::app()->errorHandler->error.
 	 * This property defaults to null, meaning CErrorHandler will handle the error display.
 	 */
 	public $errorAction;
@@ -156,7 +156,7 @@ class CErrorHandler extends CApplicationComponent
 	 */
 	protected function handleException($exception)
 	{
-		$app=Yii::app();
+		$app=Hii::app();
 		if($app instanceof CWebApplication)
 		{
 			if(($trace=$this->getExactTrace($exception))===null)
@@ -200,7 +200,7 @@ class CErrorHandler extends CApplicationComponent
 			if(!headers_sent())
 				header("HTTP/1.0 {$data['code']} ".$this->getHttpHeader($data['code'], get_class($exception)));
 
-			if($exception instanceof CHttpException || !YII_DEBUG)
+			if($exception instanceof CHttpException || !HII_DEBUG)
 				$this->render('error',$data);
 			else
 			{
@@ -244,7 +244,7 @@ class CErrorHandler extends CApplicationComponent
 			unset($trace[$i]['object']);
 		}
 
-		$app=Yii::app();
+		$app=Hii::app();
 		if($app instanceof CWebApplication)
 		{
 			switch($event->code)
@@ -283,7 +283,7 @@ class CErrorHandler extends CApplicationComponent
 				header("HTTP/1.0 500 Internal Server Error");
 			if($this->isAjaxRequest())
 				$app->displayError($event->code,$event->message,$event->file,$event->line);
-			elseif(YII_DEBUG)
+			elseif(HII_DEBUG)
 				$this->render('exception',$data);
 			else
 				$this->render('error',$data);
@@ -328,7 +328,7 @@ class CErrorHandler extends CApplicationComponent
 	protected function render($view,$data)
 	{
 		if($view==='error' && $this->errorAction!==null)
-			Yii::app()->runController($this->errorAction);
+			Hii::app()->runController($this->errorAction);
 		else
 		{
 			// additional information to be passed to view
@@ -348,9 +348,9 @@ class CErrorHandler extends CApplicationComponent
 	protected function getViewFile($view,$code)
 	{
 		$viewPaths=array(
-			Yii::app()->getTheme()===null ? null :  Yii::app()->getTheme()->getSystemViewPath(),
-			Yii::app() instanceof CWebApplication ? Yii::app()->getSystemViewPath() : null,
-			YII_PATH.DIRECTORY_SEPARATOR.'views',
+			Hii::app()->getTheme()===null ? null :  Hii::app()->getTheme()->getSystemViewPath(),
+			Hii::app() instanceof CWebApplication ? Hii::app()->getSystemViewPath() : null,
+			HII_PATH.DIRECTORY_SEPARATOR.'views',
 		);
 
 		foreach($viewPaths as $i=>$viewPath)
@@ -374,7 +374,7 @@ class CErrorHandler extends CApplicationComponent
 	 */
 	protected function getViewFileInternal($viewPath,$view,$code,$srcLanguage=null)
 	{
-		$app=Yii::app();
+		$app=Hii::app();
 		if($view==='error')
 		{
 			$viewFile=$app->findLocalizedFile($viewPath.DIRECTORY_SEPARATOR."error{$code}.php",$srcLanguage);
@@ -393,9 +393,9 @@ class CErrorHandler extends CApplicationComponent
 	 */
 	protected function getVersionInfo()
 	{
-		if(YII_DEBUG)
+		if(HII_DEBUG)
 		{
-			$version='<a href="http://www.yiiframework.com/">Yii Framework</a>/'.Yii::getVersion();
+			$version='<a href="http://www.yiiframework.com/">Hii Framework</a>/'.Hii::getVersion();
 			if(isset($_SERVER['SERVER_SOFTWARE']))
 				$version=$_SERVER['SERVER_SOFTWARE'].' '.$version;
 		}

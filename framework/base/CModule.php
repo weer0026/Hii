@@ -6,6 +6,7 @@ abstract class CModule extends CComponent
 {
 	//存储组件
 	private $_components=array();
+	private $_componentConfig=array();
 
 	/**
 	 * 获取组件，获取不到的情况下调用父类 Component::__get方法
@@ -89,9 +90,9 @@ abstract class CModule extends CComponent
 			$config=$this->_componentConfig[$id];
 			if(!isset($config['enabled']) || $config['enabled'])
 			{
-				Yii::trace("Loading \"$id\" application component",'system.CModule');
+				Hii::trace("Loading \"$id\" application component",'system.CModule');
 				unset($config['enabled']);
-				$component=Yii::createComponent($config);
+				$component=Hii::createComponent($config);
 				$component->init();
 				return $this->_components[$id]=$component;
 			}
@@ -129,7 +130,7 @@ abstract class CModule extends CComponent
 	 *     'cache'=>array(
 	 *         'class'=>'CDbCache',
 	 *         'connectionID'=>'db',
-	 *         'enabled'=>!YII_DEBUG,  // enable caching in non-debug mode
+	 *         'enabled'=>!Hii_DEBUG,  // enable caching in non-debug mode
 	 *     ),
 	 * )
 	 * </pre>

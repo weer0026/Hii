@@ -46,8 +46,14 @@ abstract class CApplication extends CModule
 		$this->initSystemHandlers();
 		//注册框架核心组件
 		$this->registerCoreComponents();
-		die;
+		//使用CComponent::__set方法设置配置
 		$this->configure($config);
+		//附加行为类
+		$this->attachBehaviors($this->behaviors);
+		//加载在配置文件中preload定义的组件
+		$this->preloadComponents();
+		//调用init 
+		$this->init();
 	}
 
 	//初始化错误和异常处理函数
